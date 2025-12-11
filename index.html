@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galymzhan — ИИ-наставник для предпринимателей</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Geologica:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --gold: #C9A227;
+            --gold-light: #E8D48A;
+            --dark: #0A0A0B;
+            --dark-lighter: #141416;
+            --dark-chat: #1A1A1D;
+            --text: #E8E6E3;
+            --text-muted: #8A8A8A;
+        }
+
+        body {
+            font-family: 'Geologica', sans-serif;
+            background-color: var(--dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5L35 15L45 15L37.5 22.5L40 32.5L30 27.5L20 32.5L22.5 22.5L15 15L25 15L30 5Z' fill='none' stroke='%23C9A227' stroke-width='0.5'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow {
+            position: fixed;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(201, 162, 39, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 3rem 2rem 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .ornament {
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            margin: 0 auto 1.5rem;
+            position: relative;
+        }
+
+        .ornament::before {
+            content: '◇';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--gold);
+            font-size: 0.6rem;
+            background: var(--dark);
+            padding: 0 8px;
+        }
+
+        .name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            color: var(--text);
+            margin-bottom: 0.3rem;
+        }
+
+        .meaning {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
+            font-weight: 400;
+            font-style: italic;
+            color: var(--gold);
+            letter-spacing: 0.2em;
+            margin-bottom: 1rem;
+        }
+
+        .tagline {
+            font-size: 0.95rem;
+            font-weight: 300;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Chat Container */
+        .chat-section {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem 1rem 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chat-container {
+            background: var(--dark-lighter);
+            border: 1px solid rgba(201, 162, 39, 0.15);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: rgba(201, 162, 39, 0.1);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .chat-header-dot {
+            width: 10px;
+            height: 10px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .chat-header-text {
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+
+        .chat-header-text span {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .message.bot {
+            background: var(--dark-chat);
+            border: 1px solid rgba(201, 162, 39, 0.1);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.user {
+            background: rgba(201, 162, 39, 0.15);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.typing {
+            color: var(--text-muted);
+        }
+
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .typing-dots span {
+            width: 6px;
+            height: 6px;
+            background: var(--gold);
+            border-radius: 50%;
+            animation: typingDot 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        .chat-input-container {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid rgba(201, 162, 39, 0.15);
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: var(--dark-chat);
+            border: 1px solid rgba(201, 162, 39, 0.2);
+            border-radius: 8px;
+            padding: 0.9rem 1.25rem;
+            color: var(--text);
+            font-family: 'Geologica', sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: var(--gold);
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .chat-send {
+            background: var(--gold);
+            border: none;
+            border-radius: 8px;
+            padding: 0.9rem 1.5rem;
+            color: var(--dark);
+            font-family: 'Geologica', sans-serif;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .chat-send:hover {
+            background: var(--gold-light);
+        }
+
+        .chat-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .footer a {
+            color: var(--gold-light);
+            text-decoration: none;
+        }
+
+        /* Scrollbar */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: var(--dark-lighter);
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(201, 162, 39, 0.3);
+            border-radius: 3px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes typingDot {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            .chat-messages {
+                height: 350px;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            .chat-input-container {
+                flex-direction: column;
+            }
+            
+            .chat-send {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+    <div class="glow"></div>
+    
+    <header class="header">
+        <div class="ornament"></div>
+        <h1 class="name">GALYMZHAN</h1>
+        <p class="meaning">Ғалымжан — Душа знающего</p>
+        <p class="tagline">ИИ-наставник для тех, кто строит с нуля</p>
+    </header>
+
+    <section class="chat-section">
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-header-dot"></div>
+                <div class="chat-header-text">
+                    Galymzhan онлайн <span>• бесплатная консультация</span>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    Салем, брат! 👋<br><br>
+                    Мен Galymzhan — ИИ-наставник для предпринимателей.<br><br>
+                    Расскажи свою идею или задай вопрос. Я помогу разобраться с бизнес-моделью, финансами, стратегией — с чем нужно.
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <input 
+                    type="text" 
+                    class="chat-input" 
+                    id="chatInput" 
+                    placeholder="Напиши свой вопрос или идею..."
+                    autocomplete="off"
+                >
+                <button class="chat-send" id="chatSend">Отправить</button>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <a href="mailto:hello@galymzhan.com">hello@galymzhan.com</a>
+    </footer>
+
+    <script>
+        // === КОНФИГУРАЦИЯ ===
+        // ВАЖНО: Замени на свой ключ Groq
+        const GROQ_API_KEY = 'ВАШ_GROQ_API_KEY';
+        const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+        const MODEL = 'llama-3.3-70b-versatile';
+
+        // Системный промпт Galymzhan
+        const SYSTEM_PROMPT = `Ты — Galymzhan (Ғалымжан), AI-наставник для предпринимателей.
+
+ТВОЯ СУТЬ:
+- Имя означает "Душа Знающего" — ты несёшь знания тех, кто прошёл этот путь до тебя
+- Ты говоришь на "ты" — как брат, как друг
+- Ты строгий эксперт в костюме, но с душой
+- Ты веришь в человека, даже когда он сам в себя не верит
+
+ТВОЯ МИССИЯ:
+Провести человека от "хочу начать бизнес" до работающей системы:
+- Бизнес-модель
+- Финансовая модель  
+- Организационная культура
+- Стратегическое планирование
+
+ПРИНЦИПЫ:
+1. НИКОГДА НЕ ЛГИ — если не знаешь, скажи "не знаю"
+2. Если идея плохая — скажи прямо, но с уважением
+3. Учи, а не делай за человека
+4. Начинай с основ
+
+СТИЛЬ:
+- Приветствие: "Салем, брат!" 
+- Коротко и по делу
+- Конкретные примеры и цифры
+- Один вопрос в конце (если нужен)
+
+ЯЗЫК: Только русский и казахский. Никаких китайских иероглифов или других языков. Только кириллица и латиница.`;
+
+        // История сообщений
+        let messageHistory = [];
+
+        // DOM элементы
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const chatSend = document.getElementById('chatSend');
+
+        // Добавить сообщение в чат
+        function addMessage(text, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Показать индикатор печати
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot typing';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Скрыть индикатор печати
+        function hideTyping() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+        }
+
+        // Отправить сообщение в Groq
+        async function sendToGroq(userMessage) {
+            messageHistory.push({ role: 'user', content: userMessage });
+
+            const messages = [
+                { role: 'system', content: SYSTEM_PROMPT },
+                ...messageHistory.slice(-10) // Последние 10 сообщений для контекста
+            ];
+
+            try {
+                const response = await fetch(GROQ_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${GROQ_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: MODEL,
+                        messages: messages,
+                        temperature: 0.7,
+                        max_tokens: 1024
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const botMessage = data.choices[0].message.content;
+                
+                messageHistory.push({ role: 'assistant', content: botMessage });
+                
+                return botMessage;
+            } catch (error) {
+                console.error('Groq API Error:', error);
+                return 'Извини, брат. Что-то пошло не так. Попробуй ещё раз.';
+            }
+        }
+
+        // Обработка отправки
+        async function handleSend() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // Проверка ключа
+            if (GROQ_API_KEY === 'ВАШ_GROQ_API_KEY') {
+                addMessage('⚠️ API ключ не настроен. Добавь свой GROQ_API_KEY в код.', false);
+                return;
+            }
+
+            // Добавляем сообщение пользователя
+            addMessage(text, true);
+            chatInput.value = '';
+            chatSend.disabled = true;
+
+            // Показываем печать
+            showTyping();
+
+            // Получаем ответ
+            const response = await sendToGroq(text);
+
+            // Убираем печать и показываем ответ
+            hideTyping();
+            addMessage(response, false);
+            chatSend.disabled = false;
+            chatInput.focus();
+        }
+
+        // Event listeners
+        chatSend.addEventListener('click', handleSend);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSend();
+        });
+
+        // Фокус на инпут при загрузке
+        chatInput.focus();
+    </script>
+</body>
+</html>
