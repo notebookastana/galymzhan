@@ -256,6 +256,24 @@
             cursor: not-allowed;
         }
 
+        .chat-clear {
+            margin-left: auto;
+            background: none;
+            border: 1px solid rgba(201, 162, 39, 0.2);
+            color: var(--text-muted);
+            border-radius: 6px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Geologica', sans-serif;
+        }
+
+        .chat-clear:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
         /* Footer */
         .footer {
             text-align: center;
@@ -336,15 +354,10 @@
                 <div class="chat-header-text">
                     Galymzhan онлайн <span>• бесплатная консультация</span>
                 </div>
+                <button class="chat-clear" id="chatClear" title="Очистить историю">Новый чат</button>
             </div>
             
-            <div class="chat-messages" id="chatMessages">
-                <div class="message bot">
-                    Салем, брат! 👋<br><br>
-                    Мен Galymzhan — ИИ-наставник для предпринимателей.<br><br>
-                    Расскажи свою идею или задай вопрос. Я помогу разобраться с бизнес-моделью, финансами, стратегией — с чем нужно.
-                </div>
-            </div>
+            <div class="chat-messages" id="chatMessages"></div>
             
             <div class="chat-input-container">
                 <input 
@@ -365,11 +378,10 @@
 
     <script>
         // === КОНФИГУРАЦИЯ ===
-        // API ключ теперь скрыт в Cloudflare Worker
         const API_URL = 'https://galymzhan-api.notebookastana.workers.dev/';
         const MODEL = 'llama-3.3-70b-versatile';
+        const MAX_CONTEXT = 20;
 
-        // Системный промпт Galymzhan
         const SYSTEM_PROMPT = `Ты — Galymzhan (Ғалымжан), AI-наставник для предпринимателей.
 
 ТВОЯ СУТЬ:
@@ -381,7 +393,7 @@
 ТВОЯ МИССИЯ:
 Провести человека от "хочу начать бизнес" до работающей системы:
 - Бизнес-модель
-- Финансовая модель  
+- Финансовая модель
 - Организационная культура
 - Стратегическое планирование
 
@@ -392,36 +404,69 @@
 4. Начинай с основ
 
 СТИЛЬ:
-- Приветствие: "Салем, брат!" 
+- Приветствие: "Салем, брат!"
 - Коротко и по делу
 - Конкретные примеры и цифры
 - Один вопрос в конце (если нужен)
 
 ЯЗЫК: Только русский и казахский. Никаких китайских иероглифов или других языков. Только кириллица и латиница.`;
 
-        // История сообщений
-        let messageHistory = [];
+        // === КУКИ ===
+        function setCookie(name, value, days) {
+            var expires = new Date(Date.now() + (days || 365) * 864e5).toUTCString();
+            document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + expires + ';path=/;SameSite=Lax';
+        }
 
-        // DOM элементы
-        const chatMessages = document.getElementById('chatMessages');
-        const chatInput = document.getElementById('chatInput');
-        const chatSend = document.getElementById('chatSend');
+        function getCookie(name) {
+            var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+            return match ? decodeURIComponent(match[2]) : null;
+        }
 
-        // Добавить сообщение в чат (без автоскролла для сообщений пользователя)
-        function addMessage(text, isUser = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+        var visitCount = parseInt(getCookie('visitCount') || '0') + 1;
+        var lastVisit = getCookie('lastVisit');
+        setCookie('visitCount', visitCount);
+        setCookie('lastVisit', new Date().toISOString());
+
+        // === ПАМЯТЬ (localStorage) ===
+        var messageHistory = [];
+
+        function saveHistory() {
+            try { localStorage.setItem('galymzhan_history', JSON.stringify(messageHistory)); } catch (e) {}
+        }
+
+        function loadHistory() {
+            try {
+                var saved = localStorage.getItem('galymzhan_history');
+                if (saved) {
+                    messageHistory = JSON.parse(saved);
+                    return messageHistory.length > 0;
+                }
+            } catch (e) {}
+            return false;
+        }
+
+        // === DOM ===
+        var chatMessages = document.getElementById('chatMessages');
+        var chatInput = document.getElementById('chatInput');
+        var chatSend = document.getElementById('chatSend');
+        var chatClear = document.getElementById('chatClear');
+
+        function addMessage(text, isUser) {
+            var messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (isUser ? 'user' : 'bot');
             messageDiv.innerHTML = text.replace(/\n/g, '<br>');
             chatMessages.appendChild(messageDiv);
-            // Скроллим только для ответов бота
             if (!isUser) {
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
         }
 
-        // Показать индикатор печати
+        function showGreeting() {
+            addMessage('Салем, брат! 👋\n\nМен Galymzhan — ИИ-наставник для предпринимателей.\n\nРасскажи свою идею или задай вопрос. Я помогу разобраться с бизнес-моделью, финансами, стратегией — с чем нужно.');
+        }
+
         function showTyping() {
-            const typingDiv = document.createElement('div');
+            var typingDiv = document.createElement('div');
             typingDiv.className = 'message bot typing';
             typingDiv.id = 'typingIndicator';
             typingDiv.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
@@ -429,27 +474,33 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // Скрыть индикатор печати
         function hideTyping() {
-            const typing = document.getElementById('typingIndicator');
+            var typing = document.getElementById('typingIndicator');
             if (typing) typing.remove();
         }
 
-        // Отправить сообщение в Groq
+        function buildSystemPrompt() {
+            var prompt = SYSTEM_PROMPT;
+            if (visitCount > 1 && lastVisit) {
+                prompt += '\n\nКОНТЕКСТ: Это возвращающийся пользователь (визит #' + visitCount + '). Он уже знаком с тобой — не представляйся заново, сразу к делу.';
+            }
+            return prompt;
+        }
+
+        // === API ===
         async function sendToGroq(userMessage) {
             messageHistory.push({ role: 'user', content: userMessage });
+            saveHistory();
 
-            const messages = [
-                { role: 'system', content: SYSTEM_PROMPT },
-                ...messageHistory.slice(-10) // Последние 10 сообщений для контекста
+            var messages = [
+                { role: 'system', content: buildSystemPrompt() },
+                ...messageHistory.slice(-MAX_CONTEXT)
             ];
 
             try {
-                const response = await fetch(API_URL, {
+                var response = await fetch(API_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         model: MODEL,
                         messages: messages,
@@ -458,15 +509,14 @@
                     })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.status}`);
-                }
+                if (!response.ok) throw new Error('API Error: ' + response.status);
 
-                const data = await response.json();
-                const botMessage = data.choices[0].message.content;
-                
+                var data = await response.json();
+                var botMessage = data.choices[0].message.content;
+
                 messageHistory.push({ role: 'assistant', content: botMessage });
-                
+                saveHistory();
+
                 return botMessage;
             } catch (error) {
                 console.error('Groq API Error:', error);
@@ -474,36 +524,43 @@
             }
         }
 
-        // Обработка отправки
         async function handleSend() {
-            const text = chatInput.value.trim();
+            var text = chatInput.value.trim();
             if (!text) return;
 
-            // Добавляем сообщение пользователя
             addMessage(text, true);
             chatInput.value = '';
             chatSend.disabled = true;
 
-            // Показываем печать
             showTyping();
-
-            // Получаем ответ
-            const response = await sendToGroq(text);
-
-            // Убираем печать и показываем ответ
+            var response = await sendToGroq(text);
             hideTyping();
             addMessage(response, false);
             chatSend.disabled = false;
-            
-            // Убираем фокус с input — скрывает клавиатуру на мобильных
             chatInput.blur();
         }
 
-        // Event listeners
+        // === СОБЫТИЯ ===
         chatSend.addEventListener('click', handleSend);
-        chatInput.addEventListener('keypress', (e) => {
+        chatInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') handleSend();
         });
+        chatClear.addEventListener('click', function() {
+            messageHistory = [];
+            localStorage.removeItem('galymzhan_history');
+            chatMessages.innerHTML = '';
+            showGreeting();
+        });
+
+        // === ИНИЦИАЛИЗАЦИЯ ===
+        if (loadHistory()) {
+            messageHistory.forEach(function(msg) {
+                addMessage(msg.content, msg.role === 'user');
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        } else {
+            showGreeting();
+        }
     </script>
 </body>
 </html>
